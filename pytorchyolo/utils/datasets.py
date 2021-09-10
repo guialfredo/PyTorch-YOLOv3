@@ -60,15 +60,9 @@ class ListDataset(Dataset):
         with open(list_path, "r") as file:
             self.img_files = file.readlines()
 
-        self.label_files = []
-        for path in self.img_files:
-            image_dir = os.path.dirname(path)
-            label_dir = "labels".join(image_dir.rsplit("images", 1))
-            assert label_dir != image_dir, \
-                f"Image path must contain a folder named 'images'! \n'{image_dir}'"
-            label_file = os.path.join(label_dir, os.path.basename(path))
-            label_file = os.path.splitext(label_file)[0] + '.txt'
-            self.label_files.append(label_file)
+        self.img_files = sorted(glob.glob("%s/*.*" % folder_path))
+        self.annotation_file = annotation_file
+        self.images = self.annotation_file.image.unique().tolist()
 
         self.img_size = img_size
         self.max_objects = 100
@@ -96,14 +90,13 @@ class ListDataset(Dataset):
         #  Label
         # ---------
         try:
-            label_path = self.label_files[index % len(self.img_files)].rstrip()
+            image_name_bbox = self.images[index]
+            boxes = self.annotation_file[self.annotation_file.image == image_name_bbox][
+            ["label","xmin", "ymin", "xmax", "ymax"]
+        ].values
 
-            # Ignore warning if file is empty
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                boxes = np.loadtxt(label_path).reshape(-1, 5)
         except Exception:
-            print(f"Could not read label '{label_path}'.")
+            print(f"Could not read label '{index}'.")
             return
 
         # -----------
